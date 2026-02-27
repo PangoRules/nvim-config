@@ -1,3 +1,5 @@
+> **Custom config reference:** [USAGE.md](USAGE.md)
+
 # kickstart.nvim
 
 ## Introduction

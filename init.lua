@@ -97,6 +97,9 @@ vim.g.have_nerd_font = true
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
 
+-- Load .nvim.lua from project root (Neovim 0.9+); prompts to trust on first load
+vim.o.exrc = true
+
 -- Make line numbers default
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
@@ -311,7 +314,7 @@ require('lazy').setup({
       spec = {
         { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
         { '<leader>t', group = '[T]oggle' },
-        { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+        { '<leader>h', group = '[H]arpoon', mode = { 'n', 'v' } },
       },
     },
   },
@@ -404,7 +407,7 @@ require('lazy').setup({
       vim.keymap.set({ 'n', 'v' }, '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
-      vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
+      vim.keymap.set('n', '<leader>sR', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader>sc', builtin.commands, { desc = '[S]earch [C]ommands' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
@@ -915,21 +918,23 @@ require('lazy').setup({
       end
 
       -- Core
-      vim.keymap.set('n', '<leader>a', function() harpoon:list():add() end, { desc = 'Harpoon add' })
       vim.keymap.set('n', '<leader>h', function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, { desc = 'Harpoon menu' })
+      vim.keymap.set('n', '<leader>ha', function() harpoon:list():add() end, { desc = 'Harpoon add' })
 
-      -- Jump to marks
-      vim.keymap.set('n', '<leader>1', function() harpoon:list():select(1) end, { desc = 'Harpoon 1' })
-      vim.keymap.set('n', '<leader>2', function() harpoon:list():select(2) end, { desc = 'Harpoon 2' })
-      vim.keymap.set('n', '<leader>3', function() harpoon:list():select(3) end, { desc = 'Harpoon 3' })
-      vim.keymap.set('n', '<leader>4', function() harpoon:list():select(4) end, { desc = 'Harpoon 4' })
+      -- Jump / clear slot / replace slot (1–4)
+      for i = 1, 4 do
+        local si = tostring(i)
+        vim.keymap.set('n', '<leader>h'  .. si, function() harpoon:list():select(i)     end, { desc = 'Harpoon: jump to '    .. si })
+        vim.keymap.set('n', '<leader>hc' .. si, function() harpoon:list():remove_at(i)  end, { desc = 'Harpoon: clear slot ' .. si })
+        vim.keymap.set('n', '<leader>hr' .. si, function() harpoon:list():replace_at(i) end, { desc = 'Harpoon: replace at ' .. si })
+      end
 
       -- Navigate
-      vim.keymap.set('n', '<leader>n', function() harpoon:list():next() end, { desc = 'Harpoon next' })
-      vim.keymap.set('n', '<leader>p', function() harpoon:list():prev() end, { desc = 'Harpoon prev' })
+      vim.keymap.set('n', '<leader>hn', function() harpoon:list():next() end, { desc = 'Harpoon next' })
+      vim.keymap.set('n', '<leader>hp', function() harpoon:list():prev() end, { desc = 'Harpoon prev' })
 
       -- Clear all
-      vim.keymap.set('n', '<leader>hc', function() harpoon:list():clear() end, { desc = 'Harpoon clear' })
+      vim.keymap.set('n', '<leader>hca', function() harpoon:list():clear() end, { desc = 'Harpoon clear' })
     end,
   },
 
@@ -938,8 +943,8 @@ require('lazy').setup({
     'WhoIsSethDaniel/mason-tool-installer.nvim',
     opts = {
       ensure_installed = {
-        'dockerfile-language-server',       -- dockerls
-        'docker-compose-language-service',  -- docker_compose_language_service
+        'dockerfile-language-server', -- dockerls
+        'docker-compose-language-service', -- docker_compose_language_service
       },
     },
   },
@@ -955,17 +960,16 @@ require('lazy').setup({
       -- so the LSP would never attach without this.
       vim.filetype.add {
         filename = {
-          ['docker-compose.yml']  = 'yaml.docker-compose',
+          ['docker-compose.yml'] = 'yaml.docker-compose',
           ['docker-compose.yaml'] = 'yaml.docker-compose',
-          ['compose.yml']         = 'yaml.docker-compose',
-          ['compose.yaml']        = 'yaml.docker-compose',
+          ['compose.yml'] = 'yaml.docker-compose',
+          ['compose.yaml'] = 'yaml.docker-compose',
         },
       }
 
       -- LSP ----------------------------------------------------------------
       local ok, blink = pcall(require, 'blink.cmp')
-      local cap = ok and blink.get_lsp_capabilities()
-                 or vim.lsp.protocol.make_client_capabilities()
+      local cap = ok and blink.get_lsp_capabilities() or vim.lsp.protocol.make_client_capabilities()
 
       vim.lsp.config('dockerls', { capabilities = cap })
       vim.lsp.config('docker_compose_language_service', { capabilities = cap })
@@ -979,69 +983,70 @@ require('lazy').setup({
       })
 
       -- Helpers ------------------------------------------------------------
-      local function float_term(cmd)
-        local buf = vim.api.nvim_create_buf(false, true)
-        local width  = math.floor(vim.o.columns * 0.92)
-        local height = math.floor(vim.o.lines   * 0.88)
-        local win = vim.api.nvim_open_win(buf, true, {
-          relative = 'editor',
-          width = width, height = height,
-          row = math.floor((vim.o.lines   - height) / 2),
-          col = math.floor((vim.o.columns - width)  / 2),
-          style = 'minimal', border = 'rounded',
-        })
-        vim.fn.termopen(cmd, {
-          on_exit = function()
-            if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
-            if vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_delete(buf, { force = true }) end
-          end,
-        })
-        vim.cmd 'startinsert'
-      end
-
-      local function bg_job(cmd, label)
-        vim.notify('Docker: ' .. label .. '…', vim.log.levels.INFO)
-        vim.fn.jobstart(cmd, {
-          on_exit = function(_, code)
-            if code == 0 then
-              vim.notify('Docker: ' .. label .. ' done', vim.log.levels.INFO)
-            else
-              vim.notify('Docker: ' .. label .. ' failed (exit ' .. code .. ')', vim.log.levels.WARN)
-            end
-          end,
-        })
-      end
+      local term = require 'custom.terminal'
+      local float_term = term.float_term
+      local bg_job = term.bg_job
 
       -- which-key group
       require('which-key').add { { '<leader>D', group = '[D]ocker' } }
 
       -- Keybindings --------------------------------------------------------
       local k = vim.keymap.set
-      k('n', '<leader>Dl', function() float_term 'lazydocker' end,
-        { desc = 'Docker: lazydocker TUI' })
-      k('n', '<leader>Di', function()
-        bg_job('docker compose --profile infra up -d', 'starting infra')
-      end, { desc = 'Docker: Start infra (postgres + minio)' })
-      k('n', '<leader>Da', function()
-        float_term 'docker compose --profile infra --profile app up'
-      end, { desc = 'Docker: Start full stack' })
-      k('n', '<leader>Db', function()
-        float_term 'docker compose --profile infra --profile app up --build'
-      end, { desc = 'Docker: Rebuild + start full stack' })
-      k('n', '<leader>Ds', function()
-        bg_job('docker compose down', 'stopping all containers')
-      end, { desc = 'Docker: Stop all' })
-      k('n', '<leader>Df', function()
-        float_term 'docker compose logs -f'
-      end, { desc = 'Docker: Follow logs' })
-      k('n', '<leader>Dp', function()
-        float_term 'docker compose ps'
-      end, { desc = 'Docker: Container status (ps)' })
-      k('n', '<leader>De', function()
-        vim.cmd('edit ' .. vim.fn.getcwd() .. '/.env')
-      end, { desc = 'Docker: Edit .env' })
+      k('n', '<leader>Dl', function() float_term 'lazydocker' end, { desc = 'Docker: lazydocker TUI' })
+      k('n', '<leader>Di', function() bg_job('docker compose up -d', 'starting containers') end, { desc = 'Docker: Start (detached)' })
+      k('n', '<leader>Da', function() float_term 'docker compose up' end, { desc = 'Docker: Start (attached)' })
+      k('n', '<leader>Db', function() float_term 'docker compose up --build' end, { desc = 'Docker: Rebuild + start' })
+      k('n', '<leader>Ds', function() bg_job('docker compose down', 'stopping all containers') end, { desc = 'Docker: Stop all' })
+      k('n', '<leader>Df', function() float_term 'docker compose logs -f' end, { desc = 'Docker: Follow logs' })
+      k('n', '<leader>Dp', function() float_term 'docker compose ps' end, { desc = 'Docker: Container status (ps)' })
+      k('n', '<leader>De', function() vim.cmd('edit ' .. vim.fn.getcwd() .. '/.env') end, { desc = 'Docker: Edit .env' })
     end,
   },
+  -- File explorer as an editable buffer — bulk rename, create nested dirs, etc.
+  {
+    'stevearc/oil.nvim',
+    opts = { default_file_explorer = true },
+    keys = { { '-', '<Cmd>Oil<CR>', desc = 'Open parent dir (oil)' } },
+  },
+
+  -- Project-wide find and replace
+  {
+    'MagicDuck/grug-far.nvim',
+    keys = {
+      { '<leader>sr', '<Cmd>GrugFar<CR>',       desc = 'Search and Replace (project)' },
+      { '<leader>sr', ':<C-u>GrugFar<CR>', mode = 'v', desc = 'Search and Replace (selection)' },
+    },
+    opts = {},
+  },
+
+  -- Diagnostics / references / todos in a persistent panel
+  {
+    'folke/trouble.nvim',
+    keys = {
+      { '<leader>xx', '<Cmd>Trouble diagnostics toggle<CR>',              desc = 'Trouble: diagnostics' },
+      { '<leader>xb', '<Cmd>Trouble diagnostics toggle filter.buf=0<CR>', desc = 'Trouble: buffer diagnostics' },
+      { '<leader>xq', '<Cmd>Trouble qflist toggle<CR>',                   desc = 'Trouble: quickfix' },
+      { '<leader>xt', '<Cmd>Trouble todo toggle<CR>',                     desc = 'Trouble: todos' },
+    },
+    opts = {},
+  },
+
+  -- Auto-close brackets and quotes (treesitter-aware)
+  {
+    'windwp/nvim-autopairs',
+    event = 'InsertEnter',
+    opts = { check_ts = true },
+  },
+
+  -- Git commit / branch / log workflow inside nvim
+  { 'sindrets/diffview.nvim' },
+  {
+    'NeogitOrg/neogit',
+    dependencies = { 'nvim-lua/plenary.nvim', 'sindrets/diffview.nvim' },
+    keys = { { '<leader>gs', '<Cmd>Neogit<CR>', desc = 'Git: Neogit status' } },
+    opts = { integrations = { diffview = true } },
+  },
+
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the

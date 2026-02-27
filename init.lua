@@ -91,8 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
-
+vim.g.have_nerd_font = true
 -- [[ Setting options ]]
 -- See `:help vim.o`
 -- NOTE: You can change these options as you wish!
@@ -614,7 +613,7 @@ require('lazy').setup({
       -- You can press `g?` for help in this menu.
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
-        'lua_ls', -- Lua Language server
+        'lua-language-server', -- Lua Language server
         'stylua', -- Used to format Lua code
         -- You can add other tools here that you want Mason to install
       })
@@ -881,12 +880,168 @@ require('lazy').setup({
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
   -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
   -- you can continue same window with `<space>sr` which resumes last telescope search
+  --
+  -- EXTRA PLUGINS
+  {
+    'ThePrimeagen/harpoon',
+    branch = 'harpoon2',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    config = function()
+      local harpoon = require 'harpoon'
+      -- REQUIRED
+      harpoon:setup()
+      -- REQUIRED
+      local conf = require('telescope.config').values
+      local function toggle_telescope(harpoon_files)
+        local file_paths = {}
+        for _, item in ipairs(harpoon_files.items) do
+          table.insert(file_paths, item.value)
+        end
+
+        require('telescope.pickers')
+          .new({}, {
+            prompt_title = 'Harpoon',
+            finder = require('telescope.finders').new_table { results = file_paths },
+            previewer = conf.file_previewer {},
+            sorter = conf.generic_sorter {},
+          })
+          :find()
+      end
+
+      -- Core
+      vim.keymap.set('n', '<leader>a', function() harpoon:list():add() end, { desc = 'Harpoon add' })
+      vim.keymap.set('n', '<leader>h', function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, { desc = 'Harpoon menu' })
+
+      -- Jump to marks
+      vim.keymap.set('n', '<leader>1', function() harpoon:list():select(1) end, { desc = 'Harpoon 1' })
+      vim.keymap.set('n', '<leader>2', function() harpoon:list():select(2) end, { desc = 'Harpoon 2' })
+      vim.keymap.set('n', '<leader>3', function() harpoon:list():select(3) end, { desc = 'Harpoon 3' })
+      vim.keymap.set('n', '<leader>4', function() harpoon:list():select(4) end, { desc = 'Harpoon 4' })
+
+      -- Navigate
+      vim.keymap.set('n', '<leader>n', function() harpoon:list():next() end, { desc = 'Harpoon next' })
+      vim.keymap.set('n', '<leader>p', function() harpoon:list():prev() end, { desc = 'Harpoon prev' })
+
+      -- Clear all
+      vim.keymap.set('n', '<leader>hc', function() harpoon:list():clear() end, { desc = 'Harpoon clear' })
+    end,
+  },
+
+  -- Docker: ensure LSP servers are installed in all profiles
+  {
+    'WhoIsSethDaniel/mason-tool-installer.nvim',
+    opts = {
+      ensure_installed = {
+        'dockerfile-language-server',       -- dockerls
+        'docker-compose-language-service',  -- docker_compose_language_service
+      },
+    },
+  },
+
+  {
+    dir = vim.fn.stdpath 'config',
+    name = 'docker-integration',
+    lazy = false,
+    dependencies = { 'neovim/nvim-lspconfig' },
+    config = function()
+      -- Filetype detection -------------------------------------------------
+      -- Neovim doesn't natively set 'yaml.docker-compose' for compose files,
+      -- so the LSP would never attach without this.
+      vim.filetype.add {
+        filename = {
+          ['docker-compose.yml']  = 'yaml.docker-compose',
+          ['docker-compose.yaml'] = 'yaml.docker-compose',
+          ['compose.yml']         = 'yaml.docker-compose',
+          ['compose.yaml']        = 'yaml.docker-compose',
+        },
+      }
+
+      -- LSP ----------------------------------------------------------------
+      local ok, blink = pcall(require, 'blink.cmp')
+      local cap = ok and blink.get_lsp_capabilities()
+                 or vim.lsp.protocol.make_client_capabilities()
+
+      vim.lsp.config('dockerls', { capabilities = cap })
+      vim.lsp.config('docker_compose_language_service', { capabilities = cap })
+      vim.lsp.enable { 'dockerls', 'docker_compose_language_service' }
+
+      -- Treesitter: dockerfile + yaml --------------------------------------
+      pcall(function() require('nvim-treesitter').install { 'dockerfile', 'yaml' } end)
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = { 'dockerfile', 'yaml' },
+        callback = function() pcall(vim.treesitter.start) end,
+      })
+
+      -- Helpers ------------------------------------------------------------
+      local function float_term(cmd)
+        local buf = vim.api.nvim_create_buf(false, true)
+        local width  = math.floor(vim.o.columns * 0.92)
+        local height = math.floor(vim.o.lines   * 0.88)
+        local win = vim.api.nvim_open_win(buf, true, {
+          relative = 'editor',
+          width = width, height = height,
+          row = math.floor((vim.o.lines   - height) / 2),
+          col = math.floor((vim.o.columns - width)  / 2),
+          style = 'minimal', border = 'rounded',
+        })
+        vim.fn.termopen(cmd, {
+          on_exit = function()
+            if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+            if vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_delete(buf, { force = true }) end
+          end,
+        })
+        vim.cmd 'startinsert'
+      end
+
+      local function bg_job(cmd, label)
+        vim.notify('Docker: ' .. label .. '…', vim.log.levels.INFO)
+        vim.fn.jobstart(cmd, {
+          on_exit = function(_, code)
+            if code == 0 then
+              vim.notify('Docker: ' .. label .. ' done', vim.log.levels.INFO)
+            else
+              vim.notify('Docker: ' .. label .. ' failed (exit ' .. code .. ')', vim.log.levels.WARN)
+            end
+          end,
+        })
+      end
+
+      -- which-key group
+      require('which-key').add { { '<leader>D', group = '[D]ocker' } }
+
+      -- Keybindings --------------------------------------------------------
+      local k = vim.keymap.set
+      k('n', '<leader>Dl', function() float_term 'lazydocker' end,
+        { desc = 'Docker: lazydocker TUI' })
+      k('n', '<leader>Di', function()
+        bg_job('docker compose --profile infra up -d', 'starting infra')
+      end, { desc = 'Docker: Start infra (postgres + minio)' })
+      k('n', '<leader>Da', function()
+        float_term 'docker compose --profile infra --profile app up'
+      end, { desc = 'Docker: Start full stack' })
+      k('n', '<leader>Db', function()
+        float_term 'docker compose --profile infra --profile app up --build'
+      end, { desc = 'Docker: Rebuild + start full stack' })
+      k('n', '<leader>Ds', function()
+        bg_job('docker compose down', 'stopping all containers')
+      end, { desc = 'Docker: Stop all' })
+      k('n', '<leader>Df', function()
+        float_term 'docker compose logs -f'
+      end, { desc = 'Docker: Follow logs' })
+      k('n', '<leader>Dp', function()
+        float_term 'docker compose ps'
+      end, { desc = 'Docker: Container status (ps)' })
+      k('n', '<leader>De', function()
+        vim.cmd('edit ' .. vim.fn.getcwd() .. '/.env')
+      end, { desc = 'Docker: Edit .env' })
+    end,
+  },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the

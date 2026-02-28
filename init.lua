@@ -153,7 +153,6 @@ vim.o.list = true
 vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
 
 -- Smooth scroll behaviour
-vim.opt.scrolloff = 8
 vim.opt.sidescrolloff = 8
 vim.opt.mouse = ''
 
@@ -944,13 +943,21 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>h', function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, { desc = 'Harpoon menu' })
       vim.keymap.set('n', '<leader>ha', function() harpoon:list():add() end, { desc = 'Harpoon add' })
 
-      -- Jump / clear slot / replace slot (1–4)
-      for i = 1, 4 do
-        local si = tostring(i)
-        vim.keymap.set('n', '<leader>h' .. si, function() harpoon:list():select(i) end, { desc = 'Harpoon: jump to ' .. si })
-        vim.keymap.set('n', '<leader>hc' .. si, function() harpoon:list():remove_at(i) end, { desc = 'Harpoon: clear slot ' .. si })
-        vim.keymap.set('n', '<leader>hr' .. si, function() harpoon:list():replace_at(i) end, { desc = 'Harpoon: replace at ' .. si })
-      end
+      -- Jump / clear slot / replace slot (slots 1–4, explicit so each binding is readable at a glance)
+      vim.keymap.set('n', '<leader>h1', function() harpoon:list():select(1) end, { desc = 'Harpoon: jump to slot 1' })
+      vim.keymap.set('n', '<leader>h2', function() harpoon:list():select(2) end, { desc = 'Harpoon: jump to slot 2' })
+      vim.keymap.set('n', '<leader>h3', function() harpoon:list():select(3) end, { desc = 'Harpoon: jump to slot 3' })
+      vim.keymap.set('n', '<leader>h4', function() harpoon:list():select(4) end, { desc = 'Harpoon: jump to slot 4' })
+
+      vim.keymap.set('n', '<leader>hc1', function() harpoon:list():remove_at(1) end, { desc = 'Harpoon: clear slot 1' })
+      vim.keymap.set('n', '<leader>hc2', function() harpoon:list():remove_at(2) end, { desc = 'Harpoon: clear slot 2' })
+      vim.keymap.set('n', '<leader>hc3', function() harpoon:list():remove_at(3) end, { desc = 'Harpoon: clear slot 3' })
+      vim.keymap.set('n', '<leader>hc4', function() harpoon:list():remove_at(4) end, { desc = 'Harpoon: clear slot 4' })
+
+      vim.keymap.set('n', '<leader>hr1', function() harpoon:list():replace_at(1) end, { desc = 'Harpoon: replace slot 1' })
+      vim.keymap.set('n', '<leader>hr2', function() harpoon:list():replace_at(2) end, { desc = 'Harpoon: replace slot 2' })
+      vim.keymap.set('n', '<leader>hr3', function() harpoon:list():replace_at(3) end, { desc = 'Harpoon: replace slot 3' })
+      vim.keymap.set('n', '<leader>hr4', function() harpoon:list():replace_at(4) end, { desc = 'Harpoon: replace slot 4' })
 
       -- Navigate
       vim.keymap.set('n', '<leader>hn', function() harpoon:list():next() end, { desc = 'Harpoon next' })

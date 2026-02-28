@@ -14,7 +14,13 @@
 --   alias nvim-react='NVIM_PROFILE=react,dotnet nvim'
 
 -- Configure a list of LSP servers with shared capabilities + optional per-server overrides.
--- Used by simple profiles (python, node, react); complex profiles write their own lsp_setup.
+--
+-- Use this (via the `servers` profile field) when a server only needs `capabilities` set —
+-- i.e. no custom `init_options`, `filetypes` extension, or `on_init` callbacks.
+-- If a server needs any of those, write a full `lsp_setup` function instead (see vue.lua).
+--
+-- `overrides` is a table of { server_name = { extra_opts } }; entries are deep-merged with
+-- the base `{ capabilities = cap }` so you can layer in, e.g., { settings = { ... } }.
 local function simple_lsp(servers, cap, overrides)
   overrides = overrides or {}
   local names = {}
@@ -31,6 +37,11 @@ local BASE_FTS = {
   'query', 'sql', 'vim', 'vimdoc',
 }
 
+-- Remove duplicate entries from a list while preserving order.
+--
+-- Duplicates can arise because multiple profiles may list the same parser or tool.
+-- For example, both `vue` and `react` list `typescript` — after merging, deduplication
+-- ensures only one entry reaches Treesitter / Mason.
 local function dedupe(list)
   local seen, out = {}, {}
   for _, v in ipairs(list) do
@@ -43,24 +54,32 @@ local function dedupe(list)
 end
 
 local function build_specs(raw)
-  local fts       = vim.list_extend({}, BASE_FTS)
-  local tools     = {}
-  local setups    = {}
-  local formatters = {}
-  local extra     = {}
+  -- Accumulated data from all active profiles.
+  local fts       = vim.list_extend({}, BASE_FTS)   -- Treesitter parsers (starts with base set)
+  local tools     = {}                               -- Mason tools to ensure installed
+  local setups    = {}                               -- LSP setup functions, one per profile
+  local formatters = {}                              -- Conform formatters_by_ft (merged)
+  local extra     = {}                               -- Raw lazy.nvim specs (e.g. DAP plugins)
 
+  -- Step 1: Parse the comma-separated NVIM_PROFILE string into individual profile names.
+  -- Step 2: For each name, load its file from lua/custom/profiles/<name>.lua.
+  --         If the file doesn't exist (pcall returns false), warn and skip it.
   for name in raw:gmatch '[^,]+' do
     name = vim.trim(name)
     local ok, p = pcall(require, 'custom.profiles.' .. name)
     if not ok then
       vim.notify('NVIM_PROFILE: unknown profile "' .. name .. '"', vim.log.levels.WARN)
     else
+      -- Step 3: Collect Treesitter parsers, Mason tools, LSP setups, formatters, and
+      --         extra lazy.nvim specs from each profile into the shared lists.
       vim.list_extend(fts,   p.treesitter or {})
       vim.list_extend(tools, p.mason or {})
       if p.servers then
+        -- Simple path: wrap the servers list in a closure that calls simple_lsp at setup time.
         local svrs, ovrs = p.servers, p.lsp_overrides
         table.insert(setups, function(cap) return simple_lsp(svrs, cap, ovrs) end)
       elseif p.lsp_setup then
+        -- Complex path: the profile supplies its own full setup function.
         table.insert(setups, p.lsp_setup)
       end
       if p.formatters then formatters = vim.tbl_extend('force', formatters, p.formatters) end
@@ -68,9 +87,11 @@ local function build_specs(raw)
     end
   end
 
+  -- Step 4: Remove any duplicates — two profiles might both list 'typescript', for example.
   fts   = dedupe(fts)
   tools = dedupe(tools)
 
+  -- Step 5: Assemble the final list of lazy.nvim plugin specs and return it.
   local specs = {
     -- Treesitter: single merged config
     {
@@ -111,6 +132,9 @@ local function build_specs(raw)
     },
   }
 
+  -- Defer the startup notification until after Neovim's UI is fully initialised.
+  -- Calling vim.notify() directly during plugin loading (before the first screen draw)
+  -- would silently drop the message because the notification UI isn't ready yet.
   vim.schedule(function()
     vim.notify('Profiles: ' .. raw, vim.log.levels.INFO, { title = 'nvim' })
   end)

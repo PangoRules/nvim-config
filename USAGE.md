@@ -49,8 +49,12 @@ Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 | Harpoon | File bookmarks & quick jump | `<leader>h*` |
 | Grug-far | Project-wide find & replace | `<leader>sr` |
 | Trouble | Diagnostics / todo panel | `<leader>x*` |
-| Neogit + Diffview | Git commit / branch / diff workflow | `<leader>gs` |
+| Neogit | Git commit / branch / push / pull workflow | `<leader>g*` |
+| Diffview | Git diff, file history, repo log | `<leader>gd`, `<leader>gD`, `<leader>gh`, `<leader>gl` |
 | Gitsigns | Git gutter signs (+/~/_ markers) | — |
+| vim-dadbod-ui | Database explorer (SQL Server, PostgreSQL, MySQL, …) | `<leader>Q*` |
+| Render Markdown | In-buffer rendering of headers, tables, checkboxes | automatic on `.md` files |
+| nvim-ufo | LSP/indent-based folding with peek preview | `zR`, `zM`, `zK` |
 | Autopairs | Auto-close brackets/quotes (TS-aware) | — (InsertEnter) |
 | Conform | Format buffer (also on save) | `<leader>f` |
 | Blink.cmp | LSP completion | `<c-y>` accept, `<c-n/p>`, `<c-space>`, `<c-e>`, `<c-k>` |
@@ -60,6 +64,7 @@ Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 | Mini.surround | Add/delete/replace surroundings | `sa`, `sd`, `sr` |
 | nvim-lspconfig | LSP client (`lua_ls` always on) | `grn`, `gra`, `grr`, `grd`, `gri`, `grt`, `grD`, `gO`, `gW` |
 | Docker integration | Dockerfile/compose LSP + keymaps | `<leader>D*` |
+| sql-formatter | SQL formatting via conform | automatic on `.sql` files via `<leader>f` |
 
 ## Keymap Reference
 
@@ -119,6 +124,20 @@ Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 | `<leader>hp` | n | Previous file |
 | `<leader>hca` | n | Clear all slots |
 
+### Git
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>gg` | n | Open Neogit |
+| `<leader>gc` | n | Git commit |
+| `<leader>gp` | n | Git push |
+| `<leader>gP` | n | Git pull |
+| `<leader>gb` | n | Git branch |
+| `<leader>gd` | n | Diff working tree (Diffview) |
+| `<leader>gD` | n | Close diff view |
+| `<leader>gh` | n | Current file history |
+| `<leader>gl` | n | Repo log |
+
 ### Docker
 
 | Keymap | Mode | Description |
@@ -131,6 +150,24 @@ Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 | `<leader>Df` | n | Follow compose logs |
 | `<leader>Dp` | n | `docker compose ps` |
 | `<leader>De` | n | Edit `.env` |
+
+### Database
+
+Connections are stored in `~/.local/share/nvim/db_ui/`. Add them with `<leader>Qa`.
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>Qq` | n | Toggle DB UI sidebar |
+| `<leader>Qa` | n | Add connection |
+| `<leader>Qf` | n | Find buffer's connection |
+
+**Connection string formats:**
+
+```
+postgresql://user:pass@host:5432/dbname
+sqlserver://user:pass@host:1433?database=dbname
+mysql://user:pass@host:3306/dbname
+```
 
 ### File / Search / Replace
 
@@ -149,11 +186,13 @@ Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 | `<leader>xq` | n | Quickfix list (Trouble) |
 | `<leader>xt` | n | TODOs (Trouble) |
 
-### Git
+### Folding
 
 | Keymap | Mode | Description |
 |--------|------|-------------|
-| `<leader>gs` | n | Neogit status |
+| `zR` | n | Open all folds |
+| `zM` | n | Close all folds |
+| `zK` | n | Peek inside fold under cursor |
 
 ### Debug (dotnet profile only)
 
@@ -165,10 +204,34 @@ Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 | `<F12>` | n | Step Out |
 | `<leader>db` | n | Toggle breakpoint |
 | `<leader>dB` | n | Conditional breakpoint |
+| `<leader>dbc` | n | Clear all breakpoints |
 | `<leader>du` | n | Toggle DAP UI |
 | `<leader>dr` | n | Restart |
 | `<leader>dc` | n | Run to cursor |
 | `<leader>dl` | n | Run last |
+
+#### Debug — Watch / Scope
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>dwe` | n/v | Evaluate expression under cursor / selection |
+| `<leader>dwh` | n/v | Hover variable (inline float) |
+| `<leader>dww` | n | Watches panel (press `a` to add, `d` to delete) |
+| `<leader>dws` | n | Scopes (Locals) panel float |
+
+#### Debug — Neotest
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>dtt` | n | Run nearest test |
+| `<leader>dtf` | n | Run current file |
+| `<leader>dta` | n | Run all tests |
+| `<leader>dtl` | n | Run last test |
+| `<leader>dtw` | n | Watch current file |
+| `<leader>dtd` | n | Debug nearest test (via netcoredbg) |
+| `<leader>dts` | n | Toggle test summary panel |
+| `<leader>dto` | n | Open test output |
+| `<leader>dtp` | n | Toggle output panel |
 
 ## Profile System — How It Works
 
@@ -248,4 +311,4 @@ targets).
 - Docker LSP (`dockerls`, `docker_compose_language_service`) and Treesitter (`dockerfile`,
   `yaml`) are always-on — they are not behind a profile flag.
 - `lua_ls` is always enabled regardless of profile; it is hardcoded in the profile loader
-  at `lua/custom/plugins/init.lua:98`.
+  at `lua/custom/plugins/init.lua`.

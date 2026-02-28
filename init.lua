@@ -320,6 +320,7 @@ require('lazy').setup({
         { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = '[H]arpoon', mode = { 'n', 'v' } },
+        { '<leader>Q', group = '[Q]uery (DB)' },
       },
     },
   },
@@ -701,6 +702,7 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        sql = { 'sql_formatter' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -785,6 +787,14 @@ require('lazy').setup({
 
       sources = {
         default = { 'lsp', 'path', 'snippets' },
+        per_filetype = {
+          sql   = { 'dadbod', 'lsp', 'path', 'snippets' },
+          mysql = { 'dadbod', 'lsp', 'path', 'snippets' },
+          plsql = { 'dadbod', 'lsp', 'path', 'snippets' },
+        },
+        providers = {
+          dadbod = { name = 'Dadbod', module = 'vim_dadbod_completion.blink' },
+        },
       },
 
       snippets = { preset = 'luasnip' },
@@ -867,7 +877,7 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'sql', 'vim', 'vimdoc' }
       require('nvim-treesitter').install(filetypes)
       vim.api.nvim_create_autocmd('FileType', {
         pattern = filetypes,
@@ -951,13 +961,14 @@ require('lazy').setup({
     end,
   },
 
-  -- Docker: ensure LSP servers are installed in all profiles
+  -- Global tools: always installed regardless of profile
   {
     'WhoIsSethDaniel/mason-tool-installer.nvim',
     opts = {
       ensure_installed = {
-        'dockerfile-language-server', -- dockerls
+        'dockerfile-language-server',    -- dockerls
         'docker-compose-language-service', -- docker_compose_language_service
+        'sql-formatter',                 -- SQL formatting via conform
       },
     },
   },
@@ -1081,6 +1092,55 @@ require('lazy').setup({
     dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
     ft = { 'markdown' },
     opts = {},
+  },
+
+  -- Database explorer: SQL Server, PostgreSQL, MySQL, SQLite, …
+  -- Connections live in ~/.local/share/nvim/db_ui/ — add them with <leader>Qa
+  -- Connection string formats:
+  --   postgresql://user:pass@host:5432/dbname
+  --   sqlserver://user:pass@host:1433?database=dbname
+  --   mysql://user:pass@host:3306/dbname
+  {
+    'kristijanhusak/vim-dadbod-ui',
+    dependencies = {
+      'tpope/vim-dadbod',
+      { 'kristijanhusak/vim-dadbod-completion', ft = { 'sql', 'mysql', 'plsql' }, lazy = true },
+    },
+    cmd = { 'DBUI', 'DBUIToggle', 'DBUIAddConnection', 'DBUIFindBuffer' },
+    keys = {
+      { '<leader>Qq', '<Cmd>DBUIToggle<CR>',       desc = 'Query: Toggle DB UI' },
+      { '<leader>Qa', '<Cmd>DBUIAddConnection<CR>', desc = 'Query: Add connection' },
+      { '<leader>Qf', '<Cmd>DBUIFindBuffer<CR>',   desc = 'Query: Find buffer' },
+    },
+    init = function()
+      vim.g.db_ui_use_nerd_fonts = 1
+      vim.g.db_ui_save_location  = vim.fn.stdpath 'data' .. '/db_ui'
+    end,
+  },
+
+  -- LSP/treesitter-powered folding with fold count preview
+  {
+    'kevinhwang91/nvim-ufo',
+    dependencies = { 'kevinhwang91/promise-async' },
+    event = 'BufReadPost',
+    init = function()
+      vim.o.foldcolumn = '0'
+      vim.o.foldlevel = 99     -- start fully open
+      vim.o.foldlevelstart = 99
+      vim.o.foldenable = true
+    end,
+    opts = {
+      -- skip special/UI buffers (harpoon, telescope, etc.) that have no parser
+      provider_selector = function(_, _, buftype)
+        if buftype ~= '' then return '' end
+        return { 'lsp', 'indent' }
+      end,
+    },
+    keys = {
+      { 'zR', function() require('ufo').openAllFolds() end,  desc = 'Fold: Open all' },
+      { 'zM', function() require('ufo').closeAllFolds() end, desc = 'Fold: Close all' },
+      { 'zK', function() require('ufo').peekFoldedLinesUnderCursor() end, desc = 'Fold: Peek inside' },
+    },
   },
 }, {
   ui = {

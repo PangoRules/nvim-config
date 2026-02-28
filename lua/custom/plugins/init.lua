@@ -28,7 +28,7 @@ end
 local BASE_FTS = {
   'bash', 'c', 'diff', 'html',
   'lua', 'luadoc', 'markdown', 'markdown_inline',
-  'query', 'vim', 'vimdoc',
+  'query', 'sql', 'vim', 'vimdoc',
 }
 
 local function dedupe(list)

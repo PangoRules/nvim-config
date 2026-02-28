@@ -152,6 +152,11 @@ vim.o.splitbelow = true
 vim.o.list = true
 vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
 
+-- Smooth scroll behaviour
+vim.opt.scrolloff = 8
+vim.opt.sidescrolloff = 8
+vim.opt.mouse = ''
+
 -- Preview substitutions live, as you type!
 vim.o.inccommand = 'split'
 
@@ -482,7 +487,15 @@ require('lazy').setup({
       -- Automatically install LSPs and related tools to stdpath for Neovim
       -- Mason must be loaded before its dependents so we need to set it up here.
       -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
-      { 'mason-org/mason.nvim', opts = {} },
+      {
+        'mason-org/mason.nvim',
+        opts = {
+          registries = {
+            'github:mason-org/mason-registry',
+            'github:Crashdummyy/mason-registry', -- roslyn, rzls, etc.
+          },
+        },
+      },
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
       -- Useful status updates for LSP.
@@ -924,8 +937,8 @@ require('lazy').setup({
       -- Jump / clear slot / replace slot (1–4)
       for i = 1, 4 do
         local si = tostring(i)
-        vim.keymap.set('n', '<leader>h'  .. si, function() harpoon:list():select(i)     end, { desc = 'Harpoon: jump to '    .. si })
-        vim.keymap.set('n', '<leader>hc' .. si, function() harpoon:list():remove_at(i)  end, { desc = 'Harpoon: clear slot ' .. si })
+        vim.keymap.set('n', '<leader>h' .. si, function() harpoon:list():select(i) end, { desc = 'Harpoon: jump to ' .. si })
+        vim.keymap.set('n', '<leader>hc' .. si, function() harpoon:list():remove_at(i) end, { desc = 'Harpoon: clear slot ' .. si })
         vim.keymap.set('n', '<leader>hr' .. si, function() harpoon:list():replace_at(i) end, { desc = 'Harpoon: replace at ' .. si })
       end
 
@@ -1013,7 +1026,7 @@ require('lazy').setup({
   {
     'MagicDuck/grug-far.nvim',
     keys = {
-      { '<leader>sr', '<Cmd>GrugFar<CR>',       desc = 'Search and Replace (project)' },
+      { '<leader>sr', '<Cmd>GrugFar<CR>', desc = 'Search and Replace (project)' },
       { '<leader>sr', ':<C-u>GrugFar<CR>', mode = 'v', desc = 'Search and Replace (selection)' },
     },
     opts = {},
@@ -1023,10 +1036,10 @@ require('lazy').setup({
   {
     'folke/trouble.nvim',
     keys = {
-      { '<leader>xx', '<Cmd>Trouble diagnostics toggle<CR>',              desc = 'Trouble: diagnostics' },
+      { '<leader>xx', '<Cmd>Trouble diagnostics toggle<CR>', desc = 'Trouble: diagnostics' },
       { '<leader>xb', '<Cmd>Trouble diagnostics toggle filter.buf=0<CR>', desc = 'Trouble: buffer diagnostics' },
-      { '<leader>xq', '<Cmd>Trouble qflist toggle<CR>',                   desc = 'Trouble: quickfix' },
-      { '<leader>xt', '<Cmd>Trouble todo toggle<CR>',                     desc = 'Trouble: todos' },
+      { '<leader>xq', '<Cmd>Trouble qflist toggle<CR>', desc = 'Trouble: quickfix' },
+      { '<leader>xt', '<Cmd>Trouble todo toggle<CR>', desc = 'Trouble: todos' },
     },
     opts = {},
   },
@@ -1038,15 +1051,37 @@ require('lazy').setup({
     opts = { check_ts = true },
   },
 
-  -- Git commit / branch / log workflow inside nvim
-  { 'sindrets/diffview.nvim' },
+  -- Git commit / branch / log / diff workflow
+  {
+    'sindrets/diffview.nvim',
+    keys = {
+      { '<leader>gd', '<Cmd>DiffviewOpen<CR>',          desc = 'Git: Diff working tree' },
+      { '<leader>gD', '<Cmd>DiffviewClose<CR>',         desc = 'Git: Close diff view' },
+      { '<leader>gh', '<Cmd>DiffviewFileHistory %<CR>', desc = 'Git: File history' },
+      { '<leader>gl', '<Cmd>DiffviewFileHistory<CR>',   desc = 'Git: Repo log' },
+    },
+  },
   {
     'NeogitOrg/neogit',
     dependencies = { 'nvim-lua/plenary.nvim', 'sindrets/diffview.nvim' },
-    keys = { { '<leader>gs', '<Cmd>Neogit<CR>', desc = 'Git: Neogit status' } },
     opts = { integrations = { diffview = true } },
+    keys = {
+      { '<leader>g',  group = '[G]it' },
+      { '<leader>gg', '<Cmd>Neogit<CR>',                                              desc = 'Git: Open Neogit' },
+      { '<leader>gc', function() require('neogit').open { 'commit' } end,             desc = 'Git: Commit' },
+      { '<leader>gp', function() require('neogit').open { 'push' } end,               desc = 'Git: Push' },
+      { '<leader>gP', function() require('neogit').open { 'pull' } end,               desc = 'Git: Pull' },
+      { '<leader>gb', function() require('neogit').open { 'branch' } end,             desc = 'Git: Branch' },
+    },
   },
 
+  -- Render markdown in-buffer (headers, code blocks, tables, checkboxes)
+  {
+    'MeanderingProgrammer/render-markdown.nvim',
+    dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
+    ft = { 'markdown' },
+    opts = {},
+  },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the

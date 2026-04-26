@@ -262,10 +262,14 @@ rtp:prepend(lazypath)
 -- Auto-load NVIM_PROFILE from a .nvim-profile file in the project tree.
 -- Walks up from cwd so it works from any subdirectory. Only fires when
 -- NVIM_PROFILE is not already set (explicit env var / alias always wins).
+-- Only the first line of .nvim-profile is read; subsequent lines are ignored.
 if (vim.env.NVIM_PROFILE or '') == '' then
   local f = vim.fn.findfile('.nvim-profile', '.;')
   if f ~= '' then
-    vim.env.NVIM_PROFILE = vim.trim(vim.fn.readfile(f)[1] or '')
+    local val = vim.trim(vim.fn.readfile(f)[1] or '')
+    if val ~= '' then
+      vim.env.NVIM_PROFILE = val
+    end
   end
 end
 

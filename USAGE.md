@@ -18,7 +18,8 @@ profile is active. Everything starts from `init.lua`.
     │   ├── node.lua
     │   ├── react.lua
     │   ├── vue.lua
-    │   └── dotnet.lua
+    │   ├── dotnet.lua
+    │   └── rest.lua
     └── terminal.lua           # float_term / bg_job helpers
 ```
 
@@ -31,14 +32,20 @@ Set `NVIM_PROFILE` to a comma-separated list of profile names:
 alias nvim-python='NVIM_PROFILE=python nvim'
 alias nvim-node='NVIM_PROFILE=node nvim'
 alias nvim-react='NVIM_PROFILE=react nvim'
-alias nvim-vue='NVIM_PROFILE=vue,dotnet nvim'   # combine stacks
+alias nvim-vue='NVIM_PROFILE=vue,dotnet nvim'          # combine stacks
 alias nvim-dotnet='NVIM_PROFILE=dotnet nvim'
+alias nvim-nuxt-dotnet-py='NVIM_PROFILE=vue,dotnet,python,rest nvim'  # Nuxt + .NET + Python + REST
 ```
 
 Profiles are additive — `vue,dotnet` merges both stacks including DAP.
 
-**Per-project overrides:** place a `.nvim.lua` in the project root; it is auto-loaded via
-`exrc` (Neovim 0.9+). Nvim will prompt to trust the file on first open.
+**Per-project auto-activation:** place a `.nvim-profile` file in the project root containing
+the profile string (e.g. `vue,dotnet,python,rest`). `init.lua` reads it at startup when
+`NVIM_PROFILE` is not already set in the environment — so the explicit alias always wins.
+The file is in the global gitignore; commit it intentionally if your team should share it.
+
+**Per-session overrides:** place a `.nvim.lua` in the project root for Lua-level config
+(keymaps, vim options). Auto-loaded via `exrc` (Neovim 0.9+). Nvim prompts to trust on first open.
 
 ## Always-On Plugins
 
@@ -168,6 +175,24 @@ postgresql://user:pass@host:5432/dbname
 sqlserver://user:pass@host:1433?database=dbname
 mysql://user:pass@host:3306/dbname
 ```
+
+### REST Client (rest profile only)
+
+Keymaps active only inside `.http` files.
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>Rr` | n | Run request under cursor |
+| `<leader>Ra` | n | Run all requests in file |
+| `<leader>Rn` | n | Next request |
+| `<leader>Rp` | n | Previous request |
+| `<leader>Rt` | n | Toggle body / headers view |
+| `<leader>Rc` | n | Copy as curl command |
+| `<leader>Re` | n | Select environment |
+| `<leader>Ri` | n | Inspect request (dry-run) |
+
+Create a `.http` file alongside your API tests. Environments live in `http-client.env.json`
+in the same directory as the `.http` file.
 
 ### File / Search / Replace
 

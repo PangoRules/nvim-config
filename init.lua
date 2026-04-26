@@ -259,6 +259,16 @@ rtp:prepend(lazypath)
 --  To update plugins you can run
 --    :Lazy update
 --
+-- Auto-load NVIM_PROFILE from a .nvim-profile file in the project tree.
+-- Walks up from cwd so it works from any subdirectory. Only fires when
+-- NVIM_PROFILE is not already set (explicit env var / alias always wins).
+if (vim.env.NVIM_PROFILE or '') == '' then
+  local f = vim.fn.findfile('.nvim-profile', '.;')
+  if f ~= '' then
+    vim.env.NVIM_PROFILE = vim.trim(vim.fn.readfile(f)[1] or '')
+  end
+end
+
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
@@ -1036,6 +1046,7 @@ require('lazy').setup({
   -- File explorer as an editable buffer — bulk rename, create nested dirs, etc.
   {
     'stevearc/oil.nvim',
+    lazy = false,
     opts = { default_file_explorer = true },
     keys = { { '-', '<Cmd>Oil<CR>', desc = 'Open parent dir (oil)' } },
   },
@@ -1059,7 +1070,9 @@ require('lazy').setup({
       { '<leader>xq', '<Cmd>Trouble qflist toggle<CR>', desc = 'Trouble: quickfix' },
       { '<leader>xt', '<Cmd>Trouble todo toggle<CR>', desc = 'Trouble: todos' },
     },
-    opts = {},
+    opts = {
+      win = { wo = { wrap = true } },
+    },
   },
 
   -- Auto-close brackets and quotes (treesitter-aware)

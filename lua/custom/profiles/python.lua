@@ -1,17 +1,16 @@
 -- Python profile
 return {
-  treesitter = { 'python' },
+  treesitter = { 'python', 'toml' },
 
   mason = {
-    'pyright',  -- LSP
-    'black',    -- formatter
-    'ruff',     -- linter / fast fixer
+    'pyright', -- LSP
+    'ruff',    -- linter + formatter (replaces black)
   },
 
   servers = { 'pyright' },
 
-  -- ruff_fix runs first (fixes lint issues), black formats after
+  -- ruff_fix applies lint auto-fixes first, ruff_format formats after
   formatters = {
-    python = { 'ruff_fix', 'black' },
+    python = { 'ruff_fix', 'ruff_format' },
   },
 }

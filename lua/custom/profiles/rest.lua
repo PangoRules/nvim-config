@@ -38,7 +38,7 @@ return {
         -- The FileType event for the buffer that triggered this load already
         -- fired before the plugin was available — attach keymaps to it now.
         if vim.bo.filetype == 'http' then
-          attach(0)
+          attach(vim.api.nvim_get_current_buf())
         end
       end,
     },

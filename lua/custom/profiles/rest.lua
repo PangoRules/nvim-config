@@ -18,20 +18,28 @@ return {
 
         local k = vim.keymap.set
 
+        local function attach(buf)
+          require('which-key').add { { '<leader>R', group = '[R]EST', buffer = buf } }
+          k('n', '<leader>Rr', kulala.run,             { buffer = buf, desc = 'REST: Run request' })
+          k('n', '<leader>Ra', kulala.run_all,         { buffer = buf, desc = 'REST: Run all' })
+          k('n', '<leader>Rn', kulala.jump_next,       { buffer = buf, desc = 'REST: Next request' })
+          k('n', '<leader>Rp', kulala.jump_prev,       { buffer = buf, desc = 'REST: Previous request' })
+          k('n', '<leader>Rt', kulala.toggle_view,     { buffer = buf, desc = 'REST: Toggle body/headers' })
+          k('n', '<leader>Rc', kulala.copy_as_curl,    { buffer = buf, desc = 'REST: Copy as curl' })
+          k('n', '<leader>Re', kulala.set_selected_env,{ buffer = buf, desc = 'REST: Select environment' })
+          k('n', '<leader>Ri', kulala.inspect,         { buffer = buf, desc = 'REST: Inspect request' })
+        end
+
         vim.api.nvim_create_autocmd('FileType', {
           pattern  = 'http',
-          callback = function()
-            require('which-key').add { { '<leader>R', group = '[R]EST', buffer = true } }
-            k('n', '<leader>Rr', kulala.run,             { buffer = true, desc = 'REST: Run request' })
-            k('n', '<leader>Ra', kulala.run_all,          { buffer = true, desc = 'REST: Run all' })
-            k('n', '<leader>Rn', kulala.jump_next,        { buffer = true, desc = 'REST: Next request' })
-            k('n', '<leader>Rp', kulala.jump_prev,        { buffer = true, desc = 'REST: Previous request' })
-            k('n', '<leader>Rt', kulala.toggle_view,      { buffer = true, desc = 'REST: Toggle body/headers' })
-            k('n', '<leader>Rc', kulala.copy_as_curl,     { buffer = true, desc = 'REST: Copy as curl' })
-            k('n', '<leader>Re', kulala.set_selected_env, { buffer = true, desc = 'REST: Select environment' })
-            k('n', '<leader>Ri', kulala.inspect,          { buffer = true, desc = 'REST: Inspect request' })
-          end,
+          callback = function(ev) attach(ev.buf) end,
         })
+
+        -- The FileType event for the buffer that triggered this load already
+        -- fired before the plugin was available — attach keymaps to it now.
+        if vim.bo.filetype == 'http' then
+          attach(0)
+        end
       end,
     },
   },

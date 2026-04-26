@@ -51,7 +51,7 @@ lua/custom/
 
 | Profile | LSP strategy | Servers | Formatter | Extra specs |
 |---------|-------------|---------|-----------|-------------|
-| `python` | `servers` | `pyright` | `ruff_fix`, `black` | — |
+| `python` | `servers` | `pyright` | `ruff_fix`, `ruff_format` | — |
 | `node` | `servers` | `ts_ls`, `eslint` | `prettier` | — |
 | `react` | `servers` | `ts_ls`, `eslint` | `prettier` | — |
 | `vue` | `lsp_setup` | `ts_ls`, `vue_ls` | `prettier` | — |

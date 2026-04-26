@@ -29,10 +29,11 @@ Set `NVIM_PROFILE` to a comma-separated list of profile names:
 
 ```bash
 # ~/.zshrc
+alias nvim-vue='NVIM_PROFILE=vue,dotnet nvim'               # Vue + .NET (Hybrid Mode)
+alias nvim-react='NVIM_PROFILE=react nvim'
+alias nvim-react-dotnet='NVIM_PROFILE=react,dotnet nvim'    # React + .NET
 alias nvim-python='NVIM_PROFILE=python nvim'
 alias nvim-node='NVIM_PROFILE=node nvim'
-alias nvim-react='NVIM_PROFILE=react nvim'
-alias nvim-vue='NVIM_PROFILE=vue,dotnet nvim'          # combine stacks
 alias nvim-dotnet='NVIM_PROFILE=dotnet nvim'
 alias nvim-nuxt-dotnet-py='NVIM_PROFILE=vue,dotnet,python,rest nvim'  # Nuxt + .NET + Python + REST
 ```

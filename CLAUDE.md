@@ -56,6 +56,7 @@ lua/custom/
 | `react` | `servers` | `ts_ls`, `eslint` | `prettier` | — |
 | `vue` | `lsp_setup` | `ts_ls`, `vue_ls` | `prettier` | — |
 | `dotnet` | none (roslyn.nvim auto-attaches on `ft=cs`) | roslyn | `csharpier` | roslyn.nvim, nvim-dap + dapui + dap-virtual-text, neotest + neotest-dotnet |
+| `rest` | none | — | — | kulala.nvim (`ft=http`), buffer-local `<leader>R*` keymaps via FileType autocmd + first-buf guard |
 
 **Vue hybrid mode:** `ts_ls` + `vue_ls` run together. `@vue/typescript-plugin` is registered
 in `ts_ls.init_options` (location = Mason's volar package). `ts_ls.filetypes` is extended to
@@ -74,6 +75,7 @@ DAP UI auto-opens/closes via `event_initialized` / `event_terminated` / `event_e
 | `<leader>g*` | Git (Neogit + Diffview) |
 | `<leader>D*` | Docker |
 | `<leader>Q*` | Database (vim-dadbod-ui) |
+| `<leader>R*` | REST — rest profile only, buffer-local on `.http` files |
 | `<leader>x*` | Diagnostics / Trouble |
 | `<leader>d*` | Debug — dotnet profile only |
 | `<leader>dw*` | Debug watch/scope floats |

@@ -25,7 +25,7 @@ return {
           k('n', '<leader>Rn', kulala.jump_next,       { buffer = buf, desc = 'REST: Next request' })
           k('n', '<leader>Rp', kulala.jump_prev,       { buffer = buf, desc = 'REST: Previous request' })
           k('n', '<leader>Rt', kulala.toggle_view,     { buffer = buf, desc = 'REST: Toggle body/headers' })
-          k('n', '<leader>Rc', kulala.copy_as_curl,    { buffer = buf, desc = 'REST: Copy as curl' })
+          k('n', '<leader>Rc', kulala.copy,             { buffer = buf, desc = 'REST: Copy as curl' })
           k('n', '<leader>Re', kulala.set_selected_env,{ buffer = buf, desc = 'REST: Select environment' })
           k('n', '<leader>Ri', kulala.inspect,         { buffer = buf, desc = 'REST: Inspect request' })
         end

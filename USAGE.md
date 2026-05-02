@@ -56,6 +56,7 @@ The file is in the global gitignore; commit it intentionally if your team should
 | Oil.nvim | File explorer as editable buffer | `-` |
 | Harpoon | File bookmarks & quick jump | `<leader>h*` |
 | Grug-far | Project-wide find & replace | `<leader>sr` |
+| refactoring.nvim | Treesitter/LSP-powered refactors | `<leader>r*` |
 | Trouble | Diagnostics / todo panel | `<leader>x*` |
 | Neogit | Git commit / branch / push / pull workflow | `<leader>g*` |
 | Diffview | Git diff, file history, repo log | `<leader>gd`, `<leader>gD`, `<leader>gh`, `<leader>gl` |
@@ -131,6 +132,30 @@ The file is in the global gitignore; commit it intentionally if your team should
 | `<leader>hn` | n | Next file |
 | `<leader>hp` | n | Previous file |
 | `<leader>hca` | n | Clear all slots |
+
+### Refactoring
+
+Refactors are most reliable when the matching `NVIM_PROFILE` is active so the right
+Treesitter parser and LSP are loaded for the current language.
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>rr` | n/v | Select available refactor for current cursor / selection |
+| `<leader>re` | n/v | Extract function |
+| `<leader>rE` | n/v | Extract function to file |
+| `<leader>rb` | n/v | Extract block |
+| `<leader>rV` | n/v | Extract variable |
+| `<leader>ri` | n/v | Inline variable |
+| `<leader>rI` | n/v | Inline function |
+| `<leader>rv` | n/v | Debug print variable below with location |
+| `<leader>rc` | n/v | Cleanup refactoring.nvim debug prints |
+
+In visual mode, select code first and then trigger the mapping. In normal mode, the
+direct refactor mappings are operator-style: trigger the mapping, then give a textobject
+or motion. Example: `<leader>rViw` extracts the word under cursor as a variable.
+
+`<leader>rv` uses refactoring.nvim's debug printer, so the inserted statement includes the
+plugin's debug marker and can be removed later with `<leader>rc`.
 
 ### Git
 

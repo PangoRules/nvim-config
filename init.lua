@@ -90,6 +90,9 @@ P.S. You can delete this when you're done too. It's your config now! :)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Work around a module loader/cache issue that breaks refactoring.nvim on this setup.
+if vim.loader then vim.loader.enable(false) end
+
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
 -- [[ Setting options ]]
@@ -330,6 +333,7 @@ require('lazy').setup({
 
       -- Document existing key chains
       spec = {
+        { '<leader>r', group = '[R]efactor', mode = { 'n', 'v' } },
         { '<leader>s', group = '[S]earch', mode = { 'n', 'v' } },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = '[H]arpoon', mode = { 'n', 'v' } },
@@ -1063,6 +1067,154 @@ require('lazy').setup({
       { '<leader>sr', ':<C-u>GrugFar<CR>', mode = 'v', desc = 'Search and Replace (selection)' },
     },
     opts = {},
+  },
+
+  -- Tree-sitter/LSP powered refactors
+  {
+    'ThePrimeagen/refactoring.nvim',
+    dependencies = { 'lewis6991/async.nvim' },
+    opts = {
+      debug = {
+        markers = {
+          print_var = { start = 'RLOG', ['end'] = 'RLOG_END' },
+        },
+        print_var = {
+          code_generation = {
+            print_var = {
+              javascript = function(opts)
+                local file = vim.fn.expand '%:t'
+                local line = vim.api.nvim_win_get_cursor(0)[1]
+                local identifier = opts.identifier_str:gsub('"', '\\"')
+                return ([[console.log("🚀 %s:%d %s:", %s);]]):format(file, line, identifier, opts.identifier)
+              end,
+              typescript = function(opts)
+                local file = vim.fn.expand '%:t'
+                local line = vim.api.nvim_win_get_cursor(0)[1]
+                local identifier = opts.identifier_str:gsub('"', '\\"')
+                return ([[console.log("🚀 %s:%d %s:", %s);]]):format(file, line, identifier, opts.identifier)
+              end,
+              tsx = function(opts)
+                local file = vim.fn.expand '%:t'
+                local line = vim.api.nvim_win_get_cursor(0)[1]
+                local identifier = opts.identifier_str:gsub('"', '\\"')
+                return ([[console.log("🚀 %s:%d %s:", %s);]]):format(file, line, identifier, opts.identifier)
+              end,
+            },
+          },
+        },
+      },
+    },
+    config = function(_, opts)
+      local function refactoring_async()
+        local mod = require 'async.nvim'
+        if mod.wrap ~= nil then return mod end
+
+        local core = require 'async.core'
+        for k, v in pairs(core) do
+          if mod[k] == nil and k ~= '_runtime' then
+            mod[k] = v
+          end
+        end
+        return mod
+      end
+
+      local previous_async = package.loaded.async
+      package.loaded.async = refactoring_async()
+
+      -- Preload refactoring modules while `async` points at async.nvim.
+      -- This avoids the global `require("async")` collision with promise-async/ufo.
+      local modules = {
+        'refactoring',
+        'refactoring.utils',
+        'refactoring.refactor.extract_func',
+        'refactoring.refactor.extract_var',
+        'refactoring.refactor.inline_func',
+        'refactoring.refactor.inline_var',
+        'refactoring.debug',
+        'refactoring.debug.cleanup',
+        'refactoring.debug.print_exp',
+        'refactoring.debug.print_loc',
+        'refactoring.debug.print_var',
+      }
+      for _, module in ipairs(modules) do
+        require(module)
+      end
+
+      package.loaded.async = previous_async
+      require('refactoring').setup(opts)
+    end,
+    keys = {
+      {
+        '<leader>rr',
+        function() require('refactoring').select_refactor() end,
+        mode = { 'n', 'x' },
+        desc = 'Refactor: Select',
+      },
+      {
+        '<leader>re',
+        function() return require('refactoring').extract_func() end,
+        mode = { 'n', 'x' },
+        expr = true,
+        desc = 'Refactor: Extract function',
+      },
+      {
+        '<leader>rE',
+        function() return require('refactoring').extract_func_to_file() end,
+        mode = { 'n', 'x' },
+        expr = true,
+        desc = 'Refactor: Extract function to file',
+      },
+      {
+        '<leader>rb',
+        function() return require('refactoring').extract_block() end,
+        mode = { 'n', 'x' },
+        expr = true,
+        desc = 'Refactor: Extract block',
+      },
+      {
+        '<leader>rV',
+        function() return require('refactoring').extract_var() end,
+        mode = { 'n', 'x' },
+        expr = true,
+        desc = 'Refactor: Extract variable',
+      },
+      {
+        '<leader>ri',
+        function() return require('refactoring').inline_var() end,
+        mode = { 'n', 'x' },
+        expr = true,
+        desc = 'Refactor: Inline variable',
+      },
+      {
+        '<leader>rI',
+        function() return require('refactoring').inline_func() end,
+        mode = { 'n', 'x' },
+        expr = true,
+        desc = 'Refactor: Inline function',
+      },
+      {
+        '<leader>rv',
+        function() return require('refactoring.debug').print_var { output_location = 'below' } .. 'iw' end,
+        mode = 'n',
+        expr = true,
+        desc = 'Refactor: Debug print var below',
+      },
+      {
+        '<leader>rv',
+        function() return require('refactoring.debug').print_var { output_location = 'below' } end,
+        mode = 'x',
+        expr = true,
+        desc = 'Refactor: Debug print var below',
+      },
+      {
+        '<leader>rc',
+        function() return require('refactoring.debug').cleanup { restore_view = true } end,
+        mode = { 'n', 'x' },
+        expr = true,
+        remap = true,
+        desc = 'Refactor: Cleanup debug prints',
+      },
+    },
   },
 
   -- Diagnostics / references / todos in a persistent panel

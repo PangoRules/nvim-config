@@ -1246,6 +1246,18 @@ require('lazy').setup({
       { '<leader>gD', '<Cmd>DiffviewClose<CR>',         desc = 'Git: Close diff view' },
       { '<leader>gh', '<Cmd>DiffviewFileHistory %<CR>', desc = 'Git: File history' },
       { '<leader>gl', '<Cmd>DiffviewFileHistory<CR>',   desc = 'Git: Repo log' },
+      { '<leader>gB', function()
+          require('telescope.builtin').git_branches({
+            attach_mappings = function(_, map)
+              map('i', '<CR>', function(bufnr)
+                local branch = require('telescope.actions.state').get_selected_entry(bufnr).name
+                require('telescope.actions').close(bufnr)
+                vim.cmd('DiffviewOpen ' .. branch)
+              end)
+              return true
+            end,
+          })
+        end, desc = 'Git: Diff against branch (pick)' },
     },
   },
   {

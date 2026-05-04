@@ -1271,6 +1271,7 @@ require('lazy').setup({
       { '<leader>gp', function() require('neogit').open { 'push' } end,               desc = 'Git: Push' },
       { '<leader>gP', function() require('neogit').open { 'pull' } end,               desc = 'Git: Pull' },
       { '<leader>gb', function() require('neogit').open { 'branch' } end,             desc = 'Git: Branch' },
+      { '<leader>ga', function() vim.fn.system('git add -A') vim.notify('git add -A', vim.log.levels.INFO) end, desc = 'Git: Stage all' },
     },
   },
 
@@ -1319,8 +1320,10 @@ require('lazy').setup({
     end,
     opts = {
       -- skip special/UI buffers (harpoon, telescope, etc.) that have no parser
-      provider_selector = function(_, _, buftype)
+      provider_selector = function(_, filetype, buftype)
         if buftype ~= '' then return '' end
+        -- html has no LSP configured — treesitter folds work better than indent
+        if filetype == 'html' then return { 'treesitter', 'indent' } end
         return { 'lsp', 'indent' }
       end,
     },

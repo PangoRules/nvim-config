@@ -172,6 +172,28 @@ vim.o.scrolloff = 10
 -- instead raise a dialog asking if you wish to save the current file(s)
 -- See `:help 'confirm'`
 vim.o.confirm = true
+vim.o.showtabline = 2
+
+vim.o.tabline = '%!v:lua.MyTabline()'
+function MyTabline()
+  local s = ''
+  for i, t in ipairs(vim.api.nvim_list_tabpages()) do
+    local name = vim.t[t].tabname
+    if not name then
+      local wins = vim.api.nvim_tabpage_list_wins(t)
+      local buf = vim.api.nvim_win_get_buf(wins[1])
+      name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(buf), ':t')
+      if name == '' then name = '[No Name]' end
+    end
+    local hl = (t == vim.api.nvim_get_current_tabpage()) and '%#TabLineSel#' or '%#TabLine#'
+    s = s .. hl .. ' ' .. i .. ':' .. name .. ' '
+  end
+  return s .. '%#TabLineFill#'
+end
+
+vim.api.nvim_create_user_command('TabRename', function(opts)
+  vim.t.tabname = opts.args
+end, { nargs = 1 })
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -205,6 +227,13 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+vim.keymap.set('n', '<leader>ts', function()
+  vim.cmd 'belowright split | terminal'
+  vim.cmd 'resize 15'
+end, { desc = '[T]erminal [S]plit below' })
+vim.keymap.set('n', '<leader>tt', function()
+  vim.cmd 'tabnew | terminal'
+end, { desc = '[T]erminal new [T]ab' })
 
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
@@ -433,6 +462,7 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sR', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader>sc', builtin.commands, { desc = '[S]earch [C]ommands' })
+      vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = '[S]earch [B]uffers' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
       -- This runs on LSP attach per buffer (see main LSP attach function in 'neovim/nvim-lspconfig' config for more info,
@@ -855,6 +885,87 @@ require('lazy').setup({
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
+  {
+    'folke/persistence.nvim',
+    lazy = false,
+    opts = { need = 0 },
+    config = function(_, opts)
+      vim.o.sessionoptions = 'buffers,curdir,tabpages,winsize,globals'
+      require('persistence').setup(opts)
+
+      -- save tab names + per-tab oil paths before mksession
+      vim.api.nvim_create_autocmd('User', {
+        pattern = 'PersistenceSavePre',
+        callback = function()
+          local data = {}
+          for i, t in ipairs(vim.api.nvim_list_tabpages()) do
+            local entry = {}
+            if vim.t[t].tabname then entry.name = vim.t[t].tabname end
+            for _, w in ipairs(vim.api.nvim_tabpage_list_wins(t)) do
+              local buf = vim.api.nvim_win_get_buf(w)
+              local bname = vim.api.nvim_buf_get_name(buf)
+              if bname:match('^oil://') then
+                entry.oil = bname:gsub('^oil://', '')
+                break
+              end
+            end
+            if next(entry) then data[tostring(i)] = entry end
+          end
+          vim.g.TabData = vim.fn.json_encode(data)
+        end,
+      })
+
+      -- restore tab names + open oil at saved path per tab
+      vim.api.nvim_create_autocmd('User', {
+        pattern = 'PersistenceLoadPost',
+        callback = function()
+          if not vim.g.TabData or vim.g.TabData == '' then return end
+          local ok, data = pcall(vim.fn.json_decode, vim.g.TabData)
+          if not ok or not data then return end
+          vim.schedule(function()
+            for i, t in ipairs(vim.api.nvim_list_tabpages()) do
+              local entry = data[tostring(i)]
+              if entry then
+                if entry.name then vim.t[t].tabname = entry.name end
+                if entry.oil then
+                  local wins = vim.api.nvim_tabpage_list_wins(t)
+                  vim.api.nvim_win_call(wins[1], function()
+                    require('oil').open(entry.oil)
+                  end)
+                end
+              end
+            end
+          end)
+        end,
+      })
+
+      local p = require('persistence')
+      local k = vim.keymap.set
+      k('n', '<leader>Ss', function() p.save() end,   { desc = 'Session save' })
+      k('n', '<leader>Sl', function() p.load() end,   { desc = 'Session load (cwd)' })
+      k('n', '<leader>SL', function() p.select() end,  { desc = 'Session select' })
+      k('n', '<leader>Sd', function() p.stop() end,   { desc = 'Session stop (no save on exit)' })
+      k('n', '<leader>SD', function()
+        local sessions = p.list()
+        if #sessions == 0 then vim.notify('No sessions found', vim.log.levels.INFO) return end
+        local items = vim.tbl_map(function(s) return vim.fn.fnamemodify(s, ':t:r') end, sessions)
+        vim.ui.select(items, { prompt = 'Delete session:' }, function(_, idx)
+          if idx then
+            vim.fn.delete(sessions[idx])
+            vim.notify('Deleted: ' .. items[idx], vim.log.levels.INFO)
+          end
+        end)
+      end, { desc = 'Session delete' })
+
+      if vim.fn.argc() == 0 then
+        vim.schedule(function()
+          local choice = vim.fn.confirm('Restore last session?', '&Yes\n&No', 2)
+          if choice == 1 then p.load() end
+        end)
+      end
+    end,
+  },
+
   { -- Collection of various small independent plugins/modules
     'nvim-mini/mini.nvim',
     config = function()
@@ -937,9 +1048,12 @@ require('lazy').setup({
     dependencies = { 'nvim-lua/plenary.nvim' },
     config = function()
       local harpoon = require 'harpoon'
-      -- REQUIRED
       harpoon:setup()
-      -- REQUIRED
+
+      local function tab_list()
+        return vim.t.tabname or ('tab_' .. vim.api.nvim_get_current_tabpage())
+      end
+
       local conf = require('telescope.config').values
       local function toggle_telescope(harpoon_files)
         local file_paths = {}
@@ -958,31 +1072,31 @@ require('lazy').setup({
       end
 
       -- Core
-      vim.keymap.set('n', '<leader>h', function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, { desc = 'Harpoon menu' })
-      vim.keymap.set('n', '<leader>ha', function() harpoon:list():add() end, { desc = 'Harpoon add' })
+      vim.keymap.set('n', '<leader>h', function() harpoon.ui:toggle_quick_menu(harpoon:list(tab_list())) end, { desc = 'Harpoon menu' })
+      vim.keymap.set('n', '<leader>ha', function() harpoon:list(tab_list()):add() end, { desc = 'Harpoon add' })
 
       -- Jump / clear slot / replace slot (slots 1–4, explicit so each binding is readable at a glance)
-      vim.keymap.set('n', '<leader>h1', function() harpoon:list():select(1) end, { desc = 'Harpoon: jump to slot 1' })
-      vim.keymap.set('n', '<leader>h2', function() harpoon:list():select(2) end, { desc = 'Harpoon: jump to slot 2' })
-      vim.keymap.set('n', '<leader>h3', function() harpoon:list():select(3) end, { desc = 'Harpoon: jump to slot 3' })
-      vim.keymap.set('n', '<leader>h4', function() harpoon:list():select(4) end, { desc = 'Harpoon: jump to slot 4' })
+      vim.keymap.set('n', '<leader>h1', function() harpoon:list(tab_list()):select(1) end, { desc = 'Harpoon: jump to slot 1' })
+      vim.keymap.set('n', '<leader>h2', function() harpoon:list(tab_list()):select(2) end, { desc = 'Harpoon: jump to slot 2' })
+      vim.keymap.set('n', '<leader>h3', function() harpoon:list(tab_list()):select(3) end, { desc = 'Harpoon: jump to slot 3' })
+      vim.keymap.set('n', '<leader>h4', function() harpoon:list(tab_list()):select(4) end, { desc = 'Harpoon: jump to slot 4' })
 
-      vim.keymap.set('n', '<leader>hc1', function() harpoon:list():remove_at(1) end, { desc = 'Harpoon: clear slot 1' })
-      vim.keymap.set('n', '<leader>hc2', function() harpoon:list():remove_at(2) end, { desc = 'Harpoon: clear slot 2' })
-      vim.keymap.set('n', '<leader>hc3', function() harpoon:list():remove_at(3) end, { desc = 'Harpoon: clear slot 3' })
-      vim.keymap.set('n', '<leader>hc4', function() harpoon:list():remove_at(4) end, { desc = 'Harpoon: clear slot 4' })
+      vim.keymap.set('n', '<leader>hc1', function() harpoon:list(tab_list()):remove_at(1) end, { desc = 'Harpoon: clear slot 1' })
+      vim.keymap.set('n', '<leader>hc2', function() harpoon:list(tab_list()):remove_at(2) end, { desc = 'Harpoon: clear slot 2' })
+      vim.keymap.set('n', '<leader>hc3', function() harpoon:list(tab_list()):remove_at(3) end, { desc = 'Harpoon: clear slot 3' })
+      vim.keymap.set('n', '<leader>hc4', function() harpoon:list(tab_list()):remove_at(4) end, { desc = 'Harpoon: clear slot 4' })
 
-      vim.keymap.set('n', '<leader>hr1', function() harpoon:list():replace_at(1) end, { desc = 'Harpoon: replace slot 1' })
-      vim.keymap.set('n', '<leader>hr2', function() harpoon:list():replace_at(2) end, { desc = 'Harpoon: replace slot 2' })
-      vim.keymap.set('n', '<leader>hr3', function() harpoon:list():replace_at(3) end, { desc = 'Harpoon: replace slot 3' })
-      vim.keymap.set('n', '<leader>hr4', function() harpoon:list():replace_at(4) end, { desc = 'Harpoon: replace slot 4' })
+      vim.keymap.set('n', '<leader>hr1', function() harpoon:list(tab_list()):replace_at(1) end, { desc = 'Harpoon: replace slot 1' })
+      vim.keymap.set('n', '<leader>hr2', function() harpoon:list(tab_list()):replace_at(2) end, { desc = 'Harpoon: replace slot 2' })
+      vim.keymap.set('n', '<leader>hr3', function() harpoon:list(tab_list()):replace_at(3) end, { desc = 'Harpoon: replace slot 3' })
+      vim.keymap.set('n', '<leader>hr4', function() harpoon:list(tab_list()):replace_at(4) end, { desc = 'Harpoon: replace slot 4' })
 
       -- Navigate
-      vim.keymap.set('n', '<leader>hn', function() harpoon:list():next() end, { desc = 'Harpoon next' })
-      vim.keymap.set('n', '<leader>hp', function() harpoon:list():prev() end, { desc = 'Harpoon prev' })
+      vim.keymap.set('n', '<leader>hn', function() harpoon:list(tab_list()):next() end, { desc = 'Harpoon next' })
+      vim.keymap.set('n', '<leader>hp', function() harpoon:list(tab_list()):prev() end, { desc = 'Harpoon prev' })
 
       -- Clear all
-      vim.keymap.set('n', '<leader>hca', function() harpoon:list():clear() end, { desc = 'Harpoon clear' })
+      vim.keymap.set('n', '<leader>hca', function() harpoon:list(tab_list()):clear() end, { desc = 'Harpoon clear' })
     end,
   },
 
@@ -1297,7 +1411,24 @@ require('lazy').setup({
     },
     cmd = { 'DBUI', 'DBUIToggle', 'DBUIAddConnection', 'DBUIFindBuffer' },
     keys = {
-      { '<leader>Qq', '<Cmd>DBUIToggle<CR>',       desc = 'Query: Toggle DB UI' },
+      { '<leader>Qq', function()
+          local found = false
+          for _, t in ipairs(vim.api.nvim_list_tabpages()) do
+            for _, w in ipairs(vim.api.nvim_tabpage_list_wins(t)) do
+              local buf = vim.api.nvim_win_get_buf(w)
+              if vim.bo[buf].filetype == 'dbui' then
+                vim.api.nvim_set_current_tabpage(t)
+                found = true
+                break
+              end
+            end
+            if found then break end
+          end
+          if not found then
+            vim.cmd 'tabnew'
+            vim.cmd 'DBUIToggle'
+          end
+        end, desc = 'Query: Open DB UI in tab' },
       { '<leader>Qa', '<Cmd>DBUIAddConnection<CR>', desc = 'Query: Add connection' },
       { '<leader>Qf', '<Cmd>DBUIFindBuffer<CR>',   desc = 'Query: Find buffer' },
     },

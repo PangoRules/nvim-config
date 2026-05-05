@@ -893,10 +893,31 @@ require('lazy').setup({
       vim.o.sessionoptions = 'buffers,curdir,tabpages,winsize,globals'
       require('persistence').setup(opts)
 
+      -- suppress save prompt for dbui /tmp/ query buffers on quit
+      vim.api.nvim_create_autocmd('QuitPre', {
+        callback = function()
+          for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            if vim.api.nvim_buf_get_name(buf):match('^/tmp/') then
+              vim.bo[buf].modified = false
+            end
+          end
+        end,
+      })
+
       -- save tab names + per-tab oil paths before mksession
       vim.api.nvim_create_autocmd('User', {
         pattern = 'PersistenceSavePre',
         callback = function()
+          -- close dbui query/result splits before mksession (keep sidebar, drop tmp windows)
+          for _, t in ipairs(vim.api.nvim_list_tabpages()) do
+            for _, w in ipairs(vim.api.nvim_tabpage_list_wins(t)) do
+              local buf = vim.api.nvim_win_get_buf(w)
+              if vim.api.nvim_buf_get_name(buf):match('^/tmp/') then
+                vim.bo[buf].modified = false
+                pcall(vim.api.nvim_win_close, w, true)
+              end
+            end
+          end
           local data = {}
           for i, t in ipairs(vim.api.nvim_list_tabpages()) do
             local entry = {}
@@ -906,6 +927,10 @@ require('lazy').setup({
               local bname = vim.api.nvim_buf_get_name(buf)
               if bname:match('^oil://') then
                 entry.oil = bname:gsub('^oil://', '')
+                break
+              end
+              if vim.bo[buf].filetype == 'dbui' then
+                entry.dbui = true
                 break
               end
             end
@@ -931,6 +956,11 @@ require('lazy').setup({
                   local wins = vim.api.nvim_tabpage_list_wins(t)
                   vim.api.nvim_win_call(wins[1], function()
                     require('oil').open(entry.oil)
+                  end)
+                elseif entry.dbui then
+                  local wins = vim.api.nvim_tabpage_list_wins(t)
+                  vim.api.nvim_win_call(wins[1], function()
+                    vim.cmd('DBUIToggle')
                   end)
                 end
               end

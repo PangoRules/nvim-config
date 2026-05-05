@@ -933,6 +933,12 @@ require('lazy').setup({
                 entry.dbui = true
                 break
               end
+              if vim.bo[buf].buftype == 'terminal' then
+                local pid = vim.fn.jobpid(vim.bo[buf].channel)
+                local cwd = vim.fn.resolve('/proc/' .. pid .. '/cwd')
+                if cwd ~= '' then entry.terminal = cwd end
+                break
+              end
             end
             if next(entry) then data[tostring(i)] = entry end
           end
@@ -961,6 +967,12 @@ require('lazy').setup({
                   local wins = vim.api.nvim_tabpage_list_wins(t)
                   vim.api.nvim_win_call(wins[1], function()
                     vim.cmd('DBUIToggle')
+                  end)
+                elseif entry.terminal then
+                  local wins = vim.api.nvim_tabpage_list_wins(t)
+                  vim.api.nvim_win_call(wins[1], function()
+                    vim.cmd('lcd ' .. vim.fn.fnameescape(entry.terminal))
+                    vim.cmd('terminal')
                   end)
                 end
               end
@@ -1459,6 +1471,7 @@ require('lazy').setup({
             vim.cmd 'DBUIToggle'
           end
         end, desc = 'Query: Open DB UI in tab' },
+      { '<leader>QQ', '<Cmd>DBUIToggle<CR>',         desc = 'Query: Toggle DB UI' },
       { '<leader>Qa', '<Cmd>DBUIAddConnection<CR>', desc = 'Query: Add connection' },
       { '<leader>Qf', '<Cmd>DBUIFindBuffer<CR>',   desc = 'Query: Find buffer' },
     },

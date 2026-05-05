@@ -891,6 +891,15 @@ require('lazy').setup({
     opts = { need = 0 },
     config = function(_, opts)
       vim.o.sessionoptions = 'buffers,curdir,tabpages,winsize,globals'
+
+      -- register BEFORE setup() so this VimLeavePre fires before persistence's
+      vim.api.nvim_create_autocmd('VimLeavePre', {
+        callback = function()
+          local choice = vim.fn.confirm('Save session before exit?', '&Yes\n&No', 1)
+          if choice ~= 1 then require('persistence').stop() end
+        end,
+      })
+
       require('persistence').setup(opts)
 
       -- suppress save prompt for dbui /tmp/ query buffers on quit
@@ -1002,7 +1011,10 @@ require('lazy').setup({
       if vim.fn.argc() == 0 then
         vim.schedule(function()
           local choice = vim.fn.confirm('Restore last session?', '&Yes\n&No', 2)
-          if choice == 1 then p.load() end
+          if choice == 1 then
+            p.load()
+            vim.schedule(function() vim.cmd 'stopinsert' end)
+          end
         end)
       end
     end,
@@ -1381,6 +1393,7 @@ require('lazy').setup({
       { '<leader>xb', '<Cmd>Trouble diagnostics toggle filter.buf=0<CR>', desc = 'Trouble: buffer diagnostics' },
       { '<leader>xq', '<Cmd>Trouble qflist toggle<CR>', desc = 'Trouble: quickfix' },
       { '<leader>xt', '<Cmd>Trouble todo toggle<CR>', desc = 'Trouble: todos' },
+      { '<leader>xe', vim.diagnostic.open_float, desc = 'Diagnostic: show float' },
     },
     opts = {
       win = { wo = { wrap = true } },

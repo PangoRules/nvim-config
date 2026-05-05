@@ -46,7 +46,15 @@ the profile string (e.g. `vue,dotnet,python,rest`). `init.lua` reads it at start
 The file is in the global gitignore; commit it intentionally if your team should share it.
 
 **Per-session overrides:** place a `.nvim.lua` in the project root for Lua-level config
-(keymaps, vim options). Auto-loaded via `exrc` (Neovim 0.9+). Nvim prompts to trust on first open.
+(keymaps, vim options, plugin globals). Auto-loaded via `exrc` (Neovim 0.9+). Nvim prompts
+to trust on first open (`:trust` while the file is the current buffer).
+
+Example use — pin a Roslyn solution file per project:
+
+```lua
+-- .nvim.lua
+vim.g.roslyn_nvim_selected_solution = vim.fn.getcwd() .. '/src/MyApp/MyApp.sln'
+```
 
 ## Always-On Plugins
 
@@ -54,7 +62,7 @@ The file is in the global gitignore; commit it intentionally if your team should
 |--------|---------|----------------|
 | Telescope | Fuzzy finder: files, grep, LSP, help | `<leader>s*`, `<leader>/`, `<leader><leader>` |
 | Oil.nvim | File explorer as editable buffer | `-` |
-| Harpoon | File bookmarks & quick jump | `<leader>h*` |
+| Harpoon | File bookmarks & quick jump (per-tab) | `<leader>h*` |
 | Grug-far | Project-wide find & replace | `<leader>sr` |
 | refactoring.nvim | Treesitter/LSP-powered refactors | `<leader>r*` |
 | Trouble | Diagnostics / todo panel | `<leader>x*` |
@@ -62,6 +70,7 @@ The file is in the global gitignore; commit it intentionally if your team should
 | Diffview | Git diff, file history, repo log | `<leader>gd`, `<leader>gD`, `<leader>gh`, `<leader>gl` |
 | Gitsigns | Git gutter signs (+/~/_ markers) | — |
 | vim-dadbod-ui | Database explorer (SQL Server, PostgreSQL, MySQL, …) | `<leader>Q*` |
+| persistence.nvim | Session save/restore with tab workspace support | `<leader>S*` |
 | Render Markdown | In-buffer rendering of headers, tables, checkboxes | automatic on `.md` files |
 | nvim-ufo | LSP/indent-based folding with peek preview | `zR`, `zM`, `zK` |
 | Autopairs | Auto-close brackets/quotes (TS-aware) | — (InsertEnter) |
@@ -75,6 +84,43 @@ The file is in the global gitignore; commit it intentionally if your team should
 | Docker integration | Dockerfile/compose LSP + keymaps | `<leader>D*` |
 | sql-formatter | SQL formatting via conform | automatic on `.sql` files via `<leader>f` |
 
+## Tab Workspace System
+
+Tabs can be named. The tabline shows tab number + name (or number only if unnamed).
+
+```
+:TabRename docs          " name current tab "docs"
+:TabRename front         " name current tab "front"
+:TabRename back          " name current tab "back"
+:TabRename dbui          " name current tab "dbui"
+```
+
+**Harpoon is per-tab** — each named tab has its own bookmark list. Switch tabs and your
+harpoon marks switch with you. Unnamed tabs share a default list.
+
+**Tab navigation:** use standard Neovim tab commands (`gt`, `gT`, `<number>gt`) or
+`:tabnew`, `:tabclose`.
+
+## Session Persistence
+
+Sessions remember: open buffers, window layout, tab pages, tab names, Oil paths per tab,
+DBUI tab state, and terminal working directories.
+
+**On startup** (when launched with no file args): prompted to restore the last session.
+
+**On exit** (`:q`, `:qa`, etc.): prompted to save the current session before closing.
+Choose `No` to exit without overwriting the saved session.
+
+| Keymap | Description |
+|--------|-------------|
+| `<leader>Ss` | Save session now |
+| `<leader>Sl` | Load session for current directory |
+| `<leader>SL` | Select from all sessions (picker) |
+| `<leader>Sd` | Stop session tracking (exit won't save) |
+| `<leader>SD` | Delete a session (picker) |
+
+Sessions are stored per-directory in `~/.local/share/nvim/sessions/`.
+
 ## Keymap Reference
 
 ### Core / Window Navigation
@@ -87,11 +133,20 @@ The file is in the global gitignore; commit it intentionally if your team should
 | `<leader>q` | n | Open diagnostic quickfix list |
 | `<leader>th` | n | Toggle inlay hints (LSP, when server supports it) |
 
+### Terminal
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `<leader>ts` | n | Open terminal split below (15 lines) |
+| `<leader>tt` | n | Open terminal in new tab |
+| `<Esc><Esc>` | t | Exit terminal insert mode (back to normal) |
+
 ### Telescope
 
 | Keymap | Mode | Description |
 |--------|------|-------------|
 | `<leader><leader>` | n | Find open buffers |
+| `<leader>sb` | n | Search open buffers |
 | `<leader>sf` | n | Find files |
 | `<leader>sg` | n | Live grep |
 | `<leader>sw` | n/v | Grep current word / selection |
@@ -121,6 +176,8 @@ The file is in the global gitignore; commit it intentionally if your team should
 | `gW` | n | Workspace symbols |
 
 ### Harpoon
+
+Harpoon lists are scoped per tab name. Each named tab has independent bookmarks.
 
 | Keymap | Mode | Description |
 |--------|------|-------------|
@@ -166,6 +223,7 @@ plugin's debug marker and can be removed later with `<leader>rc`.
 | `<leader>gp` | n | Git push |
 | `<leader>gP` | n | Git pull |
 | `<leader>gb` | n | Git branch |
+| `<leader>ga` | n | `git add -A` (stage all) |
 | `<leader>gd` | n | Diff working tree (Diffview) |
 | `<leader>gD` | n | Close diff view |
 | `<leader>gh` | n | Current file history |
@@ -190,9 +248,13 @@ Connections are stored in `~/.local/share/nvim/db_ui/`. Add them with `<leader>Q
 
 | Keymap | Mode | Description |
 |--------|------|-------------|
-| `<leader>Qq` | n | Toggle DB UI sidebar |
+| `<leader>Qq` | n | Open DB UI in a dedicated tab (creates one if not open) |
+| `<leader>QQ` | n | Toggle DB UI sidebar (raw, wherever you are) |
 | `<leader>Qa` | n | Add connection |
 | `<leader>Qf` | n | Find buffer's connection |
+
+**Saving queries:** in a DB query buffer press `W` to save the query to a named file
+(stored under `~/.local/share/nvim/db_ui/`).
 
 **Connection string formats:**
 
@@ -236,6 +298,7 @@ in the same directory as the `.http` file.
 | `<leader>xb` | n | Buffer diagnostics (Trouble) |
 | `<leader>xq` | n | Quickfix list (Trouble) |
 | `<leader>xt` | n | TODOs (Trouble) |
+| `<leader>xe` | n | Show diagnostic float under cursor |
 
 ### Folding
 
@@ -334,7 +397,7 @@ custom callbacks. See `lua/custom/profiles/vue.lua` for a worked example.
 ## Per-Project Overrides (`.nvim.lua`)
 
 Place `.nvim.lua` in the project root. Neovim auto-loads it via `exrc` and prompts to trust
-on first open.
+on first open. Open the file (`:e .nvim.lua`) then run `:trust` to approve it.
 
 Use `custom.terminal` helpers for project-specific keymaps:
 
@@ -347,6 +410,9 @@ term.bg_job("docker compose up -d", "starting dev stack")
 
 -- Opens a floating terminal window (auto-closes on exit)
 term.float_term("docker compose logs -f api")
+
+-- Pin the Roslyn solution file (dotnet profile)
+vim.g.roslyn_nvim_selected_solution = vim.fn.getcwd() .. '/src/MyApp/MyApp.sln'
 ```
 
 Tip: bind project-specific Docker commands to `<leader>D*` overrides to complement the
@@ -363,3 +429,7 @@ targets).
   `yaml`) are always-on — they are not behind a profile flag.
 - `lua_ls` is always enabled regardless of profile; it is hardcoded in the profile loader
   at `lua/custom/plugins/init.lua`.
+- Harpoon lists are keyed by the current tab's name (`vim.t.tabname`). Unnamed tabs share
+  a default list named `""`.
+- Sessions save `vim.g.TabData` (JSON) into `sessionoptions=globals` to persist tab names
+  and per-tab state (oil path, dbui flag, terminal CWD) across restarts.
